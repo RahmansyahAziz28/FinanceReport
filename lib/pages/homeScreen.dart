@@ -31,6 +31,11 @@ class _HomeScreenState extends State<HomeScreen> {
             if (provider.isLoading) {
               return const Center(child: CircularProgressIndicator());
             }
+
+            if (provider.error != null) {
+              return Center(child: Text(provider.error!));
+            }
+            
             return CustomScrollView(
               slivers: [
                 _buildAppBar(context),

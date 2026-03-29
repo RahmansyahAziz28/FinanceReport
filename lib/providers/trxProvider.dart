@@ -1,5 +1,3 @@
-// lib/providers/transaction_provider.dart
-
 import 'package:financialreport/models/summaryModel.dart';
 import 'package:financialreport/models/trxModel.dart';
 import 'package:financialreport/services/trxService.dart';
@@ -7,22 +5,20 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 class TransactionProvider extends ChangeNotifier {
-  final TransactionService _service = TransactionService();
+  final _service = TransactionService();
   final _uuid = const Uuid();
 
-  List<TransactionModel> _transactions = [];
-  bool _isLoading = false;
-
-  List<TransactionModel> get transactions => List.unmodifiable(_transactions);
-  bool get isLoading => _isLoading;
+  List<TransactionModel> transactions = [];
+  bool isLoading = false;
+  String? error;
 
   FinancialSummary get summary {
-    final income = _transactions
+    final income = transactions
         .where((t) => t.isIncome)
-        .fold(0.0, (sum, t) => sum + t.amount);
-    final expense = _transactions
+        .fold(0.0, (s, t) => s + t.amount);
+    final expense = transactions
         .where((t) => !t.isIncome)
-        .fold(0.0, (sum, t) => sum + t.amount);
+        .fold(0.0, (s, t) => s + t.amount);
     return FinancialSummary(
       totalBalance: income - expense,
       totalIncome: income,
@@ -31,12 +27,19 @@ class TransactionProvider extends ChangeNotifier {
   }
 
   Future<void> load() async {
-    _isLoading = true;
+    isLoading = true;
+    error = null;
     notifyListeners();
 
-    _transactions = await _service.getAll();
+    try {
+      transactions = await _service.getAll();
+      print("Loaded ${transactions.length} transactions");
+    } catch (e) {
+      error = e.toString();
+      print("Error loading transactions: $e");
+    }
 
-    _isLoading = false;
+    isLoading = false;
     notifyListeners();
   }
 
@@ -47,7 +50,7 @@ class TransactionProvider extends ChangeNotifier {
     required DateTime date,
     String? note,
   }) async {
-    final transaction = TransactionModel(
+    final trx = TransactionModel(
       id: _uuid.v4(),
       title: title,
       amount: amount,
@@ -55,12 +58,31 @@ class TransactionProvider extends ChangeNotifier {
       date: date,
       note: note,
     );
-    await _service.add(transaction);
-    await load();
+
+    transactions.insert(0, trx);
+    notifyListeners();
+
+    try {
+      await _service.add(trx);
+    } catch (e) {
+      transactions.removeWhere((t) => t.id == trx.id);
+      error = e.toString();
+      notifyListeners();
+    }
   }
 
   Future<void> deleteTransaction(String id) async {
-    await _service.delete(id);
-    await load();
+    final backup = List<TransactionModel>.from(transactions);
+
+    transactions.removeWhere((t) => t.id == id);
+    notifyListeners();
+
+    try {
+      await _service.delete(id);
+    } catch (e) {
+      transactions = backup;
+      error = e.toString();
+      notifyListeners();
+    }
   }
 }

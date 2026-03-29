@@ -28,13 +28,14 @@ class TransactionModel {
     'note': note,
   };
 
-  factory TransactionModel.fromJson(Map<String, dynamic> json) =>
-      TransactionModel(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        amount: (json['amount'] as num).toDouble(),
-        type: TransactionType.values.firstWhere((e) => e.name == json['type']),
-        date: DateTime.parse(json['date'] as String),
-        note: json['note'] as String?,
-      );
+  factory TransactionModel.fromJson(Map<String, dynamic> json) {
+    return TransactionModel(
+      id: json['id'].toString(),
+      title: json['title'] ?? '',
+      amount: double.parse(json['amount'].toString()),
+      type: TransactionType.values.firstWhere( (e) => e.name.toLowerCase() == json['type'].toString().toLowerCase(),),
+      date: DateTime.parse(json['date'].toString()),
+      note: json['note'],
+    );
+  }
 }
